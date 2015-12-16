@@ -61,6 +61,7 @@ Cell.prototype.getPossibilities = function () {
 
 Cell.prototype.setValue = function (value) {
 	this.value = !!value && (typeof value == 'number') && (value > 0) && (value < 10) ? value : 0;
+	if (this.value != 0) this.possibles = [this.value];
 	this.triggerListeners("valueUpdate");
 }
 
@@ -107,8 +108,9 @@ var SudokuBoard = function (array) {
 	this.blocks = {};
 	this.rows = {};
 	this.columns = {};
-	this.solvingBlocks = [];
-	this.options = {};
+	this.solvedBlocks = [];
+	this.solvedRows = [];
+	this.solvedColumns = [];
 
 	for (var i = 0; i < 9; i++) {
 		for (var j = 0; j < 9; j++) {
@@ -135,19 +137,42 @@ SudokuBoard.prototype.setListeners = function (cell) {
 	cell.listen("possiblesUpdate", this.checkBlock, this, [cell.getBlock()]);
 	cell.listen("possiblesUpdate", this.checkRow, this, [cell.getRow()]);
 	cell.listen("possiblesUpdate", this.checkColumn, this, [cell.getColumn()]);
+	cell.listen("valueUpdate",this.updateSolved, this, [cell]);
+	cell.listen("valueUpdate", this.checkValue, this, [cell]);
 	cell.listen("valueUpdate", this.checkBlock, this, [cell.getBlock()]);
 	cell.listen("valueUpdate", this.checkRow, this, [cell.getRow()]);
 	cell.listen("valueUpdate", this.checkColumn, this, [cell.getColumn()]);
-	cell.listen("valueUpdate", this.checkValue, this, [cell]);
-
-	cell.listen("valueUpdate", this.setChanged, this, [this.options]);
-	cell.listen("possiblesUpdate", this.setChanged, this, [this.options]);
-
 }
 
-SudokuBoard.prototype.setChanged = function (settings) {
-	settings.changed = true;
-};
+SudokuBoard.prototype.updateSolved = function (cell) {
+	var i;
+	for (i = 0; i < this.blocks[cell.getBlock()].length; i++) {
+		if(this.blocks[cell.getBlock()][i].filled()) break;
+	};
+	if (i == this.blocks[cell.getBlock()].length) this.solvedBlocks.push(cell.getBlock());
+
+	for (i = 0; i < this.rows[cell.getRow()].length; i++) {
+		if(this.rows[cell.getRow()][i].filled()) break;
+	};
+	if (i == this.rows[cell.getRow()].length) this.solvedRows.push(cell.getRow());
+
+	for (i = 0; i < this.columns[cell.getColumn()].length; i++) {
+		if(this.columns[cell.getColumn()][i].filled()) break;
+	};
+	if (i == this.columns[cell.getColumn()].length) this.solvedColumns.push(cell.getColumn());
+}
+
+SudokuBoard.prototype.isBlockSolved = function (block) {
+	return this.solvedBlocks.indexOf(block) != -1;
+}
+
+SudokuBoard.prototype.isRowSolved = function (row) {
+	return this.solvedRows.indexOf(row) != -1;
+}
+
+SudokuBoard.prototype.isColumnSolved = function (column) {
+	return this.solvedColumns.indexOf(column) != -1;
+}
 
 SudokuBoard.prototype.checkValue = function (cell) {
 	var possibility = this.isPossible(cell.getRow(), cell.getColumn(), cell.getBlock(), cell.getValue());
@@ -160,45 +185,60 @@ SudokuBoard.prototype.isNotSolvingBlock = function(block) {
 };
 
 SudokuBoard.prototype.checkBlock = function (block) {
-	for (var number = 1; number <= 9; number++) {
-		var numberPossibles = [];
-		for (var i = 0; i < this.blocks[block].length; i++) {
-			var possibility = this.isPossible(this.blocks[block][i].getRow(), this.blocks[block][i].getColumn(), this.blocks[block][i].getBlock(), number);
-			if (possibility && !this.blocks[block][i].filled()) numberPossibles.push(this.blocks[block][i]);
-			if (this.isNotSolvingBlock(this.blocks[block][i].getBlock()) || this.blocks[block][i].filled() || !this.blocks[block][i].isPossible(number)) continue;
-			if(!possibility) this.blocks[block][i].removePossibility(number);
+	if (!this.isBlockSolved(block)) {
+		for (var number = 1; number <= 9; number++) {
+			var numberPossibles = [];
+			for (var i = 0; i < this.blocks[block].length; i++) {
+				var possibility = this.isPossible(this.blocks[block][i].getRow(), this.blocks[block][i].getColumn(), this.blocks[block][i].getBlock(), number);
+				if (/*this.isNotSolvingBlock(this.blocks[block][i].getBlock()) ||*/ this.blocks[block][i].filled() || !this.blocks[block][i].isPossible(number)) continue;
+				if(!possibility) this.blocks[block][i].removePossibility(number);
+			};
+			for (var i = 0; i < this.blocks[block].length; i++) {
+				var possibility = this.isPossible(this.blocks[block][i].getRow(), this.blocks[block][i].getColumn(), this.blocks[block][i].getBlock(), number);
+				if (possibility && !this.blocks[block][i].filled()) numberPossibles.push(this.blocks[block][i]);
+			};		
+			if (numberPossibles.length == 1) 
+				numberPossibles[0].setValue(number);
 		};
-		if (numberPossibles.length == 1) 
-			numberPossibles[0].setValue(number);
-	};
+	}
 }
 
 SudokuBoard.prototype.checkRow = function (row) {
-	for (var number = 1; number <= 9; number++) {
-		var numberPossibles = [];
-		for (var i = 0; i < this.rows[row].length; i++) {
-			var possibility = this.isPossible(this.rows[row][i].getRow(), this.rows[row][i].getColumn(), this.rows[row][i].getBlock(), number);
-			if (possibility && !this.rows[row][i].filled()) numberPossibles.push(this.rows[row][i]);
-			if (this.isNotSolvingBlock(this.rows[row][i].getBlock()) || this.rows[row][i].filled() || !this.rows[row][i].isPossible(number)) continue;
-			if(!possibility) this.rows[row][i].removePossibility(number);
+	if (!this.isRowSolved(row)) {
+		for (var number = 1; number <= 9; number++) {
+			var numberPossibles = [];
+			for (var i = 0; i < this.rows[row].length; i++) {
+				var possibility = this.isPossible(this.rows[row][i].getRow(), this.rows[row][i].getColumn(), this.rows[row][i].getBlock(), number);
+				if (/*this.isNotSolvingBlock(this.rows[row][i].getBlock()) ||*/ this.rows[row][i].filled() || !this.rows[row][i].isPossible(number)) continue;
+				if(!possibility) this.rows[row][i].removePossibility(number);
+			};
+			for (var i = 0; i < this.rows[row].length; i++) {
+				var possibility = this.isPossible(this.rows[row][i].getRow(), this.rows[row][i].getColumn(), this.rows[row][i].getBlock(), number);
+				if (possibility && !this.rows[row][i].filled()) numberPossibles.push(this.rows[row][i]);
+			};
+			if (numberPossibles.length == 1) 
+				numberPossibles[0].setValue(number);
 		};
-		if (numberPossibles.length == 1) 
-			numberPossibles[0].setValue(number);
-	};
+	}
 }
 
 SudokuBoard.prototype.checkColumn = function (column) {
-	for (var number = 1; number <= 9; number++) {
-		var numberPossibles = [];
-		for (var i = 0; i < this.columns[column].length; i++) {
-			var possibility = this.isPossible(this.columns[column][i].getRow(), this.columns[column][i].getColumn(), this.columns[column][i].getBlock(), number);
-			if (possibility && !this.columns[column][i].filled()) numberPossibles.push(this.columns[column][i]);
-			if (this.isNotSolvingBlock(this.columns[column][i].getBlock()) || this.columns[column][i].filled() || !this.columns[column][i].isPossible(number)) continue;
-			if(!possibility) this.columns[column][i].removePossibility(number);
+	if (!this.isColumnSolved(column)) {
+		for (var number = 1; number <= 9; number++) {
+			var numberPossibles = [];
+			for (var i = 0; i < this.columns[column].length; i++) {
+				var possibility = this.isPossible(this.columns[column][i].getRow(), this.columns[column][i].getColumn(), this.columns[column][i].getBlock(), number);
+				if (/*this.isNotSolvingBlock(this.columns[column][i].getBlock()) ||*/ this.columns[column][i].filled() || !this.columns[column][i].isPossible(number)) continue;
+				if(!possibility) this.columns[column][i].removePossibility(number);
+			};
+			for (var i = 0; i < this.columns[column].length; i++) {
+				var possibility = this.isPossible(this.columns[column][i].getRow(), this.columns[column][i].getColumn(), this.columns[column][i].getBlock(), number);
+				if (possibility && !this.columns[column][i].filled()) numberPossibles.push(this.columns[column][i]);
+			};
+			if (numberPossibles.length == 1) 
+				numberPossibles[0].setValue(number);
 		};
-		if (numberPossibles.length == 1) 
-			numberPossibles[0].setValue(number);
-	};
+	}
 }
 
 
@@ -211,15 +251,13 @@ SudokuBoard.prototype.toArray = function (newBoard) {
 	return arr;
 }
 
-SudokuBoard.prototype.solveBlock = function (block, settings) {
-	this.solvingBlocks.push(block);
-	this.options = settings;
+SudokuBoard.prototype.solveBlock = function (block) {
 	this.checkBlock(block);
 }
 
 SudokuBoard.prototype.isPossible = function(row, column, block, value) {
 	for (var i = 0; i < this.blocks[block].length; i++) {
-		if(this.blocks[block][i].getValue() == value && this.blocks[block][i].getRow() != row && this.blocks[block][i].getColumn() != column)
+		if(this.blocks[block][i].getValue() == value && (this.blocks[block][i].getRow() != row || this.blocks[block][i].getColumn() != column))
 			return false;
 	};
 	for (var i = 0; i < this.rows[row].length; i++) {
@@ -233,6 +271,22 @@ SudokuBoard.prototype.isPossible = function(row, column, block, value) {
 	return true;
 };
 
+SudokuBoard.prototype.isSolved = function () {
+	var i;
+	for (i = 0; i < this.cells.length; i++) {
+		if(!this.cells[i].filled()) break;
+	};
+	if (i == this.cells.length) return true;
+	return false;
+}
+
+SudokuBoard.prototype.getUnsolvedCell = function () {
+	for (var i = 0; i < this.cells.length; i++) {
+		if(!this.cells[i].filled()) return this.cells[i];
+	};
+	return false;
+}
+
 
 /*
 *
@@ -245,13 +299,34 @@ var Sudoku = function (array) {
 }
 
 Sudoku.prototype.solve = function (argument) {
-	var settings = {changed: true};
-	while(settings.changed){
-		settings.changed = false;
-		for (var i = 0; i < 9; i++) {
-			this.sudoku.solveBlock("b"+i, settings);
-		};
-	}
-	console.log(this.sudoku.toArray());
+	var solvedSudoku = this.solveSudoku(this.sudoku);
+	if (!!solvedSudoku) this.sudoku = solvedSudoku;
+	else console.log("impossible puzzle!");
 }
 
+Sudoku.prototype.solveSudoku = function (sudoku) {	
+	for (var i = 0; i < 9; i++) {
+		try{
+			sudoku.solveBlock("b"+i);
+		}
+		catch(e){
+			console.log(e);
+			return false;
+		}
+	};
+	if (sudoku.isSolved()) {
+		return sudoku;
+	}
+	else {
+		var sudokuArray = sudoku.toArray();
+		var cell = sudoku.getUnsolvedCell();
+		if (cell) {
+			for (var i = 0; i < cell.getPossibilities().length; i++) {
+				sudokuArray[cell.getCellPos()] = cell.getPossibilities()[i];
+				var sudokuReturned = this.solveSudoku(new SudokuBoard(sudokuArray));
+				if (!!sudokuReturned) return sudokuReturned;
+			};
+			return false;
+		};
+	}
+}
