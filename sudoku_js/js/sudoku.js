@@ -163,10 +163,10 @@ SudokuBoard.prototype.checkBlock = function (block) {
 	for (var number = 1; number <= 9; number++) {
 		var numberPossibles = [];
 		for (var i = 0; i < this.blocks[block].length; i++) {
-			if (this.isNotSolvingBlock(this.blocks[block][i].getBlock()) || this.blocks[block][i].filled() || !this.blocks[block][i].isPossible(number)) continue;
 			var possibility = this.isPossible(this.blocks[block][i].getRow(), this.blocks[block][i].getColumn(), this.blocks[block][i].getBlock(), number);
+			if (possibility && !this.blocks[block][i].filled()) numberPossibles.push(this.blocks[block][i]);
+			if (this.isNotSolvingBlock(this.blocks[block][i].getBlock()) || this.blocks[block][i].filled() || !this.blocks[block][i].isPossible(number)) continue;
 			if(!possibility) this.blocks[block][i].removePossibility(number);
-			else numberPossibles.push(this.blocks[block][i]);
 		};
 		if (numberPossibles.length == 1) 
 			numberPossibles[0].setValue(number);
@@ -177,10 +177,10 @@ SudokuBoard.prototype.checkRow = function (row) {
 	for (var number = 1; number <= 9; number++) {
 		var numberPossibles = [];
 		for (var i = 0; i < this.rows[row].length; i++) {
-			if (this.isNotSolvingBlock(this.rows[row][i].getBlock()) || this.rows[row][i].filled() || !this.rows[row][i].isPossible(number)) continue;
 			var possibility = this.isPossible(this.rows[row][i].getRow(), this.rows[row][i].getColumn(), this.rows[row][i].getBlock(), number);
+			if (possibility && !this.rows[row][i].filled()) numberPossibles.push(this.rows[row][i]);
+			if (this.isNotSolvingBlock(this.rows[row][i].getBlock()) || this.rows[row][i].filled() || !this.rows[row][i].isPossible(number)) continue;
 			if(!possibility) this.rows[row][i].removePossibility(number);
-			else numberPossibles.push(this.rows[row][i]);
 		};
 		if (numberPossibles.length == 1) 
 			numberPossibles[0].setValue(number);
@@ -191,10 +191,10 @@ SudokuBoard.prototype.checkColumn = function (column) {
 	for (var number = 1; number <= 9; number++) {
 		var numberPossibles = [];
 		for (var i = 0; i < this.columns[column].length; i++) {
-			if (this.isNotSolvingBlock(this.columns[column][i].getBlock()) || this.columns[column][i].filled() || !this.columns[column][i].isPossible(number)) continue;
 			var possibility = this.isPossible(this.columns[column][i].getRow(), this.columns[column][i].getColumn(), this.columns[column][i].getBlock(), number);
+			if (possibility && !this.columns[column][i].filled()) numberPossibles.push(this.columns[column][i]);
+			if (this.isNotSolvingBlock(this.columns[column][i].getBlock()) || this.columns[column][i].filled() || !this.columns[column][i].isPossible(number)) continue;
 			if(!possibility) this.columns[column][i].removePossibility(number);
-			else numberPossibles.push(this.columns[column][i]);
 		};
 		if (numberPossibles.length == 1) 
 			numberPossibles[0].setValue(number);
